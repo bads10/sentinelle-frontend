@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query'
 import {
   Activity,
   TrendingUp,
-  Globe,
   Shield,
   AlertTriangle,
   Database,
@@ -20,22 +19,20 @@ import {
   Pie,
   Cell,
   Legend,
-  AreaChart,
-  Area,
 } from 'recharts'
-import { format, parseISO } from 'date-fns'
-import { fr } from 'date-fns/locale'
 import { api } from '@/lib/api'
+import React from 'react'
 
 const SEVERITY_COLORS: Record<string, string> = {
   critical: '#ef4444',
   high: '#f97316',
   medium: '#eab308',
   low: '#22c55e',
+  info: '#3b82f6',
 }
 
-const TYPE_COLORS = [
-  '#000d4ff', '#7c3aed', '#0891b2', '#059669', '#d97706', '#dc2626', '#6b7280',
+const CAT_COLORS = [
+  '#00d4ff', '#7c3aed', '#0891b2', '#059669', '#d97706', '#dc2626', '#6b7280', '#ec4899',
 ]
 
 function StatCard({
@@ -86,37 +83,36 @@ export default function StatsPage() {
     refetchInterval: 60000,
   })
 
-  // Prepare chart data
+  // Severity data from individual count fields
   const severityData = stats
-    ? Object.entries(stats.by_severity).map(([key, value]) => ({
-        name: key.charAt(0).toUpperCase() + key.slice(1),
-        value,
-        fill: SEVERITY_COLORS[key] ?? '#6b7280',
-      }))
+    ? [
+        { name: 'Critical', value: stats.critical_count, fill: SEVERITY_COLORS.critical },
+        { name: 'High', value: stats.high_count, fill: SEVERITY_COLORS.high },
+        { name: 'Medium', value: stats.medium_count, fill: SEVERITY_COLORS.medium },
+        { name: 'Low', value: stats.low_count, fill: SEVERITY_COLORS.low },
+        { name: 'Info', value: stats.info_count, fill: SEVERITY_COLORS.info },
+      ].filter((d) => d.value > 0)
     : []
 
-  const typeData = stats
-    ? Object.entries(stats.by_type)
+  // Category data from by_category
+  const categoryData = stats?.by_category
+    ? Object.entries(stats.by_category)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 8)
         .map(([key, value], i) => ({
           name: key,
           value,
-          fill: TYPE_COLORS[i % TYPE_COLORS.length],
+          fill: CAT_COLORS[i % CAT_COLORS.length],
         }))
     : []
 
-  const countryData = stats
-    ? Object.entries(stats.by_country)
+  // Source data from by_source
+  const sourceData = stats?.by_source
+    ? Object.entries(stats.by_source)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 10)
         .map(([key, value]) => ({ name: key, value }))
     : []
-
-  const weeklyData = stats?.weekly_activity?.map((d) => ({
-    ...d,
-    label: format(parseISO(d.date), 'EEE dd/MM', { locale: fr }),
-  })) ?? []
 
   return (
     <div className="space-y-8">
@@ -127,7 +123,7 @@ export default function StatsPage() {
         </div>
         <div>
           <h1 className="text-2xl font-bold text-cyber-text">Statistiques</h1>
-          <p className="text-xs text-cyber-muted mt-0.5">Vue agregée des incidents</p>
+          <p className="text-xs text-cyber-muted mt-0.5">Vue agrégée des incidents</p>
         </div>
       </div>
 
@@ -141,22 +137,22 @@ export default function StatsPage() {
           loading={isLoading}
         />
         <StatCard
-          title="Critiques 24h"
-          value={stats?.critical_24h ?? '–'}
+          title="Critiques"
+          value={stats?.critical_count ?? '–'}
           icon={<AlertTriangle className="w-4 h-4" />}
           color="danger"
           loading={isLoading}
         />
         <StatCard
-          title="Nouveaux Aujourd’hui"
-          value={stats?.new_today ?? '–'}
+          title="Dernières 24h"
+          value={stats?.last_24h ?? '–'}
           icon={<TrendingUp className="w-4 h-4" />}
           color="warning"
           loading={isLoading}
         />
         <StatCard
-          title="Sources Actives"
-          value={stats?.active_sources ?? '–'}
+          title="Dernière semaine"
+          value={stats?.last_7d ?? '–'}
           icon={<Activity className="w-4 h-4" />}
           color="accent"
           loading={isLoading}
@@ -165,43 +161,6 @@ export default function StatsPage() {
 
       {/* Charts row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Weekly activity */}
-        <div className="bg-cyber-card border border-cyber-border rounded-xl p-6">
-          <h2 className="text-sm font-semibold text-cyber-text mb-4 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-cyber-primary" />
-            Activité sur 7 jours
-          </h2>
-          {isLoading ? (
-            <div className="h-48 bg-cyber-border/20 rounded animate-pulse" />
-          ) : (
-            <ResponsiveContainer width="100%" height={180}>
-              <AreaChart data={weeklyData}>
-                <defs>
-                  <linearGradient id="gradWeekly" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#000d4ff" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#000d4ff" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" />
-                <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 11 }} />
-                <YAxis tick={{ fill: '#64748b', fontSize: 11 }} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#141c2e', border: '1px solid #1e2d45', borderRadius: 8 }}
-                  labelStyle={{ color: '#e2e8f0' }}
-                  itemStyle={{ color: '#000d4ff' }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="count"
-                  stroke="#000d4ff"
-                  strokeWidth={2}
-                  fill="url(#gradWeekly)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-
         {/* Severity pie */}
         <div className="bg-cyber-card border border-cyber-border rounded-xl p-6">
           <h2 className="text-sm font-semibold text-cyber-text mb-4 flex items-center gap-2">
@@ -211,14 +170,14 @@ export default function StatsPage() {
           {isLoading ? (
             <div className="h-48 bg-cyber-border/20 rounded animate-pulse" />
           ) : (
-            <ResponsiveContainer width="100%" height={180}>
+            <ResponsiveContainer width="100%" height={200}>
               <PieChart>
                 <Pie
                   data={severityData}
                   cx="50%"
                   cy="50%"
                   innerRadius={50}
-                  outerRadius={75}
+                  outerRadius={80}
                   dataKey="value"
                   paddingAngle={3}
                 >
@@ -239,30 +198,27 @@ export default function StatsPage() {
             </ResponsiveContainer>
           )}
         </div>
-      </div>
 
-      {/* Charts row 2 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* By type */}
+        {/* Category bar */}
         <div className="bg-cyber-card border border-cyber-border rounded-xl p-6">
           <h2 className="text-sm font-semibold text-cyber-text mb-4 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-cyber-warning" />
-            Incidents par type
+            Incidents par catégorie
           </h2>
           {isLoading ? (
             <div className="h-48 bg-cyber-border/20 rounded animate-pulse" />
           ) : (
             <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={typeData} layout="vertical">
+              <BarChart data={categoryData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" horizontal={false} />
                 <XAxis type="number" tick={{ fill: '#64748b', fontSize: 11 }} />
-                <YAxis dataKey="name" type="category" tick={{ fill: '#94a3b8', fontSize: 11 }} width={90} />
+                <YAxis dataKey="name" type="category" tick={{ fill: '#94a3b8', fontSize: 11 }} width={100} />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#141c2e', border: '1px solid #1e2d45', borderRadius: 8 }}
                   labelStyle={{ color: '#e2e8f0' }}
                 />
                 <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                  {typeData.map((entry, index) => (
+                  {categoryData.map((entry, index) => (
                     <Cell key={index} fill={entry.fill} />
                   ))}
                 </Bar>
@@ -270,40 +226,37 @@ export default function StatsPage() {
             </ResponsiveContainer>
           )}
         </div>
+      </div>
 
-        {/* By country */}
-        <div className="bg-cyber-card border border-cyber-border rounded-xl p-6">
-          <h2 className="text-sm font-semibold text-cyber-text mb-4 flex items-center gap-2">
-            <Globe className="w-4 h-4 text-cyber-accent" />
-            Top 10 pays ciblés
-          </h2>
-          {isLoading ? (
-            <div className="h-48 bg-cyber-border/20 rounded animate-pulse" />
-          ) : (
-            <div className="space-y-2">
-              {countryData.map((item, i) => {
-                const max = countryData[0]?.value ?? 1
-                const pct = Math.round((item.value / max) * 100)
-                return (
-                  <div key={item.name} className="flex items-center gap-3">
-                    <span className="text-xs text-cyber-muted w-4 text-right">{i + 1}</span>
-                    <span className="text-xs text-cyber-text w-24 truncate">{item.name}</span>
-                    <div className="flex-1 h-2 bg-cyber-surface rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-cyber-accent rounded-full transition-all"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                    <span className="text-xs text-cyber-muted w-8 text-right font-mono">{item.value}</span>
+      {/* Sources */}
+      <div className="bg-cyber-card border border-cyber-border rounded-xl p-6">
+        <h2 className="text-sm font-semibold text-cyber-text mb-4">Top sources</h2>
+        {isLoading ? (
+          <div className="h-24 bg-cyber-border/20 rounded animate-pulse" />
+        ) : (
+          <div className="space-y-2">
+            {sourceData.map((item, i) => {
+              const max = sourceData[0]?.value ?? 1
+              const pct = Math.round((item.value / max) * 100)
+              return (
+                <div key={item.name} className="flex items-center gap-3">
+                  <span className="text-xs text-cyber-muted w-4 text-right">{i + 1}</span>
+                  <span className="text-xs text-cyber-text w-32 truncate">{item.name}</span>
+                  <div className="flex-1 h-2 bg-cyber-surface rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-cyber-primary rounded-full transition-all"
+                      style={{ width: `${pct}%` }}
+                    />
                   </div>
-                )
-              })}
-              {countryData.length === 0 && (
-                <p className="text-cyber-muted text-sm text-center py-8">Aucune donnée disponible</p>
-              )}
-            </div>
-          )}
-        </div>
+                  <span className="text-xs text-cyber-muted w-8 text-right font-mono">{item.value}</span>
+                </div>
+              )
+            })}
+            {sourceData.length === 0 && (
+              <p className="text-cyber-muted text-sm text-center py-8">Aucune donnée disponible</p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
