@@ -27,8 +27,6 @@ export default function IncidentsPage() {
   const [filters, setFilters] = useState<IncidentFilters>({
     page: 1,
     limit: 12,
-    sort: 'date_published',
-    order: 'desc',
   })
   const [search, setSearch] = useState('')
 
@@ -39,7 +37,7 @@ export default function IncidentsPage() {
   })
 
   const handleSearch = useCallback(() => {
-    setFilters((prev) => ({ ...prev, search, page: 1 }))
+    setFilters((prev) => ({ ...prev, q: search || undefined, page: 1 }))
   }, [search])
 
   const handleFilter = (key: keyof IncidentFilters, value: string) => {
@@ -96,7 +94,7 @@ export default function IncidentsPage() {
             ))}
           </select>
           <select
-            onChange={(e) => handleFilter('incident_type', e.target.value)}
+            onChange={(e) => handleFilter('type', e.target.value)}
             className="bg-cyber-surface border border-cyber-border rounded-lg px-3 py-1.5 text-sm text-cyber-text focus:outline-none focus:border-cyber-primary"
           >
             {TYPE_OPTIONS.map((opt) => (
@@ -104,13 +102,6 @@ export default function IncidentsPage() {
                 {opt.label}
               </option>
             ))}
-          </select>
-          <select
-            onChange={(e) => handleFilter('order', e.target.value as 'asc' | 'desc')}
-            className="bg-cyber-surface border border-cyber-border rounded-lg px-3 py-1.5 text-sm text-cyber-text focus:outline-none focus:border-cyber-primary"
-          >
-            <option value="desc">Plus récent</option>
-            <option value="asc">Plus ancien</option>
           </select>
           {data && (
             <span className="ml-auto text-xs text-cyber-muted">
