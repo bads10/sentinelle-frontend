@@ -1,5 +1,4 @@
 'use client'
-
 import { useParams, useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -13,8 +12,9 @@ import {
   Activity,
   FileText,
   Globe,
+  Users,
 } from 'lucide-react'
-import { format } from 'date-fns'
+import { format, formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { api } from '@/lib/api'
 import { SeverityBadge } from '@/components/SeverityBadge'
@@ -22,7 +22,7 @@ import { SeverityBadge } from '@/components/SeverityBadge'
 export default function IncidentDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const id = Number(params.id)
+  const id = String(params.id)
 
   const { data: incident, isLoading, isError } = useQuery({
     queryKey: ['incident', id],
@@ -55,17 +55,7 @@ export default function IncidentDetailPage() {
     )
   }
 
-  const statusColors = {
-    new: 'text-cyber-primary border-cyber-primary/30 bg-cyber-primary/10',
-    in_progress: 'text-yellow-400 border-yellow-400/30 bg-yellow-400/10',
-    resolved: 'text-green-400 border-green-400/30 bg-green-400/10',
-  }
-
-  const statusLabels = {
-    new: 'Nouveau',
-    in_progress: 'En cours',
-    resolved: 'Résolu',
-  }
+  const dateStr = incident.published_at || incident.discovered_at
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -84,41 +74,47 @@ export default function IncidentDetailPage() {
           <h1 className="text-xl font-bold text-cyber-text flex-1">{incident.title}</h1>
           <SeverityBadge severity={incident.severity} size="lg" />
         </div>
-
         <div className="flex flex-wrap gap-2 mb-4">
-          <span className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border font-medium ${statusColors[incident.status]}`}>
-            <Activity className="w-3 h-3" />
-            {statusLabels[incident.status]}
-          </span>
-          <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border border-cyber-border text-cyber-muted">
-            <Shield className="w-3 h-3" />
-            {incident.incident_type}
-          </span>
-          {incident.country && (
+          {incident.category && (
+            <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border border-cyber-border text-cyber-muted">
+              <Shield className="w-3 h-3" />
+              {incident.category}
+            </span>
+          )}
+          {incident.country_origin && (
             <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border border-cyber-border text-cyber-muted">
               <MapPin className="w-3 h-3" />
-              {incident.country}
+              {incident.country_origin}
             </span>
           )}
-          {incident.sector && (
-            <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border border-cyber-border text-cyber-muted">
+          {incident.affected_sectors?.slice(0, 2).map((sector) => (
+            <span key={sector} className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border border-cyber-border text-cyber-muted">
               <Globe className="w-3 h-3" />
-              {incident.sector}
+              {sector}
             </span>
-          )}
-          {incident.threat_actor && (
-            <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border border-cyber-border text-cyber-muted">
-              <Tag className="w-3 h-3" />
-              {incident.threat_actor}
+          ))}
+          {incident.threat_actors?.slice(0, 1).map((actor) => (
+            <span key={actor} className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border border-cyber-border text-cyber-muted">
+              <Users className="w-3 h-3" />
+              {actor}
+            </span>
+          ))}
+          {incident.is_verified && (
+            <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border border-green-400/30 text-green-400 bg-green-400/10">
+              <Activity className="w-3 h-3" />
+              Vérifié
             </span>
           )}
         </div>
-
         <div className="flex items-center justify-between text-xs text-cyber-muted">
           <div className="flex items-center gap-1">
             <Clock className="w-3 h-3" />
-            Publié le{' '}
-            {format(new Date(incident.date_published), 'dd MMMM yyyy à HH:mm', { locale: fr })}
+            {formatDistanceToNow(new Date(dateStr), { addSuffix: true, locale: fr })}
+            {incident.published_at && (
+              <span className="ml-1">
+                &middot; {format(new Date(incident.published_at), 'dd MMM yyyy', { locale: fr })}
+              </span>
+            )}
           </div>
           <a
             href={incident.source_url}
@@ -136,16 +132,15 @@ export default function IncidentDetailPage() {
         {/* Main content */}
         <div className="lg:col-span-2 space-y-6">
           {/* AI Summary */}
-          {incident.ai_summary && (
+          {incident.summary && (
             <div className="bg-cyber-card border border-cyber-primary/30 rounded-xl p-6">
               <h2 className="text-sm font-semibold text-cyber-primary mb-3 flex items-center gap-2">
                 <Activity className="w-4 h-4" />
-                Résumé IA
+                Résumé
               </h2>
-              <p className="text-sm text-cyber-text leading-relaxed">{incident.ai_summary}</p>
+              <p className="text-sm text-cyber-text leading-relaxed">{incident.summary}</p>
             </div>
           )}
-
           {/* Description */}
           {incident.description && (
             <div className="bg-cyber-card border border-cyber-border rounded-xl p-6">
@@ -158,29 +153,39 @@ export default function IncidentDetailPage() {
               </p>
             </div>
           )}
-
-          {/* IOCs */}
-          {Object.keys(incident.iocs || {}).length > 0 && (
+          {/* TTPs */}
+          {incident.ttps && incident.ttps.length > 0 && (
             <div className="bg-cyber-card border border-cyber-border rounded-xl p-6">
               <h2 className="text-sm font-semibold text-cyber-text mb-4 flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-cyber-danger" />
-                Indicateurs de Compromission (IOCs)
+                TTPs (MITRE ATT&amp;CK)
               </h2>
-              <div className="space-y-3">
-                {Object.entries(incident.iocs).map(([type, values]) => (
-                  <div key={type}>
-                    <p className="text-xs font-semibold text-cyber-muted uppercase tracking-wide mb-2">{type}</p>
-                    <div className="flex flex-wrap gap-1">
-                      {values.map((val, i) => (
-                        <span
-                          key={i}
-                          className="text-xs px-2 py-1 rounded bg-cyber-surface border border-cyber-border text-cyber-text font-mono break-all"
-                        >
-                          {val}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
+              <div className="flex flex-wrap gap-2">
+                {incident.ttps.map((ttp) => (
+                  <span
+                    key={ttp}
+                    className="text-xs px-2 py-1 rounded bg-cyber-surface border border-cyber-border text-cyber-text font-mono"
+                  >
+                    {ttp}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {/* Malware */}
+          {incident.malware_families && incident.malware_families.length > 0 && (
+            <div className="bg-cyber-card border border-cyber-border rounded-xl p-6">
+              <h2 className="text-sm font-semibold text-cyber-text mb-4">
+                Familles de malware
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {incident.malware_families.map((m) => (
+                  <span
+                    key={m}
+                    className="text-xs px-2 py-1 rounded bg-cyber-danger/10 border border-cyber-danger/30 text-cyber-danger font-mono"
+                  >
+                    {m}
+                  </span>
                 ))}
               </div>
             </div>
@@ -189,78 +194,74 @@ export default function IncidentDetailPage() {
 
         {/* Sidebar */}
         <div className="space-y-4">
-          {/* CVEs */}
-          {incident.cve_ids?.length > 0 && (
+          {/* CVE */}
+          {incident.cve_id && (
             <div className="bg-cyber-card border border-cyber-border rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-cyber-text mb-3">CVEs associés</h3>
-              <div className="flex flex-wrap gap-2">
-                {incident.cve_ids.map((cve) => (
-                  <a
-                    key={cve}
-                    href={`https://nvd.nist.gov/vuln/detail/${cve}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs px-2 py-1 rounded bg-cyber-danger/10 border border-cyber-danger/30 text-cyber-danger font-mono hover:bg-cyber-danger/20 transition-colors"
-                  >
-                    {cve}
-                  </a>
-                ))}
-              </div>
+              <h3 className="text-sm font-semibold text-cyber-text mb-3">CVE associé</h3>
+              <a
+                href={`https://nvd.nist.gov/vuln/detail/${incident.cve_id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs px-2 py-1 rounded bg-cyber-danger/10 border border-cyber-danger/30 text-cyber-danger font-mono hover:bg-cyber-danger/20 transition-colors"
+              >
+                {incident.cve_id}
+              </a>
+              {incident.cvss_score !== null && (
+                <p className="text-xs text-cyber-muted mt-2">CVSS: {incident.cvss_score}</p>
+              )}
             </div>
           )}
-
           {/* Tags */}
-          {incident.tags?.length > 0 && (
+          {incident.tags && incident.tags.length > 0 && (
             <div className="bg-cyber-card border border-cyber-border rounded-xl p-5">
               <h3 className="text-sm font-semibold text-cyber-text mb-3">Tags</h3>
               <div className="flex flex-wrap gap-2">
                 {incident.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="text-xs px-2 py-1 rounded bg-cyber-surface border border-cyber-border text-cyber-muted"
+                    className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-cyber-surface border border-cyber-border text-cyber-muted"
                   >
+                    <Tag className="w-3 h-3" />
                     {tag}
                   </span>
                 ))}
               </div>
             </div>
           )}
-
-          {/* Confidence */}
-          {incident.confidence_score !== null && (
+          {/* Affected Products */}
+          {incident.affected_products && incident.affected_products.length > 0 && (
             <div className="bg-cyber-card border border-cyber-border rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-cyber-text mb-3">Score de confiance</h3>
-              <div className="flex items-center gap-3">
-                <div className="flex-1 h-2 bg-cyber-surface rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-cyber-primary rounded-full"
-                    style={{ width: `${(incident.confidence_score ?? 0) * 100}%` }}
-                  />
-                </div>
-                <span className="text-sm font-bold text-cyber-primary">
-                  {Math.round((incident.confidence_score ?? 0) * 100)}%
-                </span>
+              <h3 className="text-sm font-semibold text-cyber-text mb-3">Produits affectés</h3>
+              <div className="flex flex-wrap gap-2">
+                {incident.affected_products.map((p) => (
+                  <span key={p} className="text-xs px-2 py-1 rounded bg-cyber-surface border border-cyber-border text-cyber-muted">{p}</span>
+                ))}
               </div>
             </div>
           )}
-
           {/* Metadata */}
           <div className="bg-cyber-card border border-cyber-border rounded-xl p-5">
             <h3 className="text-sm font-semibold text-cyber-text mb-3">Métadonnées</h3>
             <dl className="space-y-2 text-xs">
               <div className="flex justify-between">
-                <dt className="text-cyber-muted">Ingéré le</dt>
+                <dt className="text-cyber-muted">Découvert le</dt>
                 <dd className="text-cyber-text">
-                  {format(new Date(incident.date_ingested), 'dd/MM/yyyy', { locale: fr })}
+                  {format(new Date(incident.discovered_at), 'dd/MM/yyyy', { locale: fr })}
                 </dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-cyber-muted">Source</dt>
                 <dd className="text-cyber-text">{incident.source_name}</dd>
               </div>
+              {incident.source_category && (
+                <div className="flex justify-between">
+                  <dt className="text-cyber-muted">Catégorie source</dt>
+                  <dd className="text-cyber-text">{incident.source_category}</dd>
+                </div>
+              )}
               <div className="flex justify-between">
                 <dt className="text-cyber-muted">ID</dt>
-                <dd className="text-cyber-text font-mono">#{incident.id}</dd>
+                <dd className="text-cyber-text font-mono text-[10px] break-all">{incident.id}</dd>
               </div>
             </dl>
           </div>
