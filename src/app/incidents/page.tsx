@@ -1,7 +1,6 @@
 'use client'
-
 import { useState, useCallback } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { Shield, Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react'
 import { api, IncidentFilters } from '@/lib/api'
 import { IncidentCard } from '@/components/IncidentCard'
@@ -36,7 +35,7 @@ export default function IncidentsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['incidents', filters],
     queryFn: () => api.getIncidents(filters),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   })
 
   const handleSearch = useCallback(() => {
