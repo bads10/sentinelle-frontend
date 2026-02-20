@@ -5,13 +5,12 @@ import {
   AlertTriangle,
   Bell,
   Clock,
-  MapPin,
   Shield,
   RefreshCw,
   ChevronRight,
 } from 'lucide-react'
 import Link from 'next/link'
-import { formatDistanceToNow, format } from 'date-fns'
+import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { api } from '@/lib/api'
 import { SeverityBadge } from '@/components/SeverityBadge'
@@ -31,8 +30,6 @@ export default function AlertsPage() {
       api.getIncidents({
         severity: activeSeverity,
         limit: 20,
-        sort: 'date_published',
-        order: 'desc',
       }),
     refetchInterval: 60000,
   })
@@ -112,7 +109,7 @@ export default function AlertsPage() {
                 : incident.severity === 'high'
                 ? 'bg-orange-400'
                 : 'bg-yellow-400'
-
+            const dateStr = incident.published_at || incident.discovered_at
             return (
               <Link
                 key={incident.id}
@@ -122,7 +119,6 @@ export default function AlertsPage() {
                 <div className="flex items-start gap-4">
                   {/* Accent bar */}
                   <div className={`w-1 h-full min-h-[48px] rounded-full ${accentColor} opacity-70 shrink-0`} />
-
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-3 mb-2">
                       <h3 className="text-sm font-semibold text-cyber-text group-hover:text-cyber-primary transition-colors line-clamp-2">
@@ -132,45 +128,37 @@ export default function AlertsPage() {
                         <SeverityBadge severity={incident.severity} size="sm" />
                       </div>
                     </div>
-
-                    {incident.ai_summary && (
+                    {incident.summary && (
                       <p className="text-xs text-cyber-muted line-clamp-2 mb-3">
-                        {incident.ai_summary}
+                        {incident.summary}
                       </p>
                     )}
-
                     <div className="flex items-center flex-wrap gap-3 text-xs text-cyber-muted">
-                      <span className="flex items-center gap-1">
-                        <Shield className="w-3 h-3" />
-                        {incident.incident_type}
-                      </span>
-                      {incident.country && (
+                      {incident.incident_type && (
                         <span className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
-                          {incident.country}
+                          <Shield className="w-3 h-3" />
+                          {incident.incident_type}
                         </span>
                       )}
-                      {incident.threat_actor && (
-                        <span className="font-mono text-cyber-danger/80">
-                          {incident.threat_actor}
+                      {incident.source_name && (
+                        <span className="font-mono text-cyber-primary/80">
+                          {incident.source_name}
                         </span>
                       )}
                       <span className="flex items-center gap-1 ml-auto">
                         <Clock className="w-3 h-3" />
-                        {formatDistanceToNow(new Date(incident.date_published), {
+                        {formatDistanceToNow(new Date(dateStr), {
                           addSuffix: true,
                           locale: fr,
                         })}
                       </span>
                     </div>
                   </div>
-
                   <ChevronRight className="w-4 h-4 text-cyber-border group-hover:text-cyber-primary transition-colors shrink-0 mt-1" />
                 </div>
               </Link>
             )
           })}
-
           {!data?.items?.length && (
             <div className="text-center py-20 text-cyber-muted">
               <Bell className="w-10 h-10 mx-auto mb-3 opacity-30" />
@@ -187,7 +175,7 @@ export default function AlertsPage() {
             href={`/incidents?severity=${activeSeverity}`}
             className="text-sm text-cyber-primary hover:underline"
           >
-            Voir les {data.total} alertes {activeSeverity} &rarr;
+            Voir les {data.total} alertes {activeSeverity} →
           </Link>
         </div>
       )}
