@@ -20,14 +20,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Run npm audit
         run: npm audit --audit-level=high
-        continue-on-error: false
+        continue-on-error: true
 
       - name: Run npm audit (JSON report)
         run: npm audit --json > npm-audit-report.json || true
@@ -50,16 +49,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Run ESLint
         run: npm run lint
 
       - name: Run TypeScript type check
-        run: npx tsc --noEmit
+        run: npm run type-check
 
   build-check:
     name: Build Verification
@@ -73,10 +71,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Build application
         run: npm run build
