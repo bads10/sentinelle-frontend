@@ -1,15 +1,17 @@
 import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { ExternalLink, Clock, MapPin, Tag, Shield } from 'lucide-react'
-import { Incident } from '@/lib/api'
+import { ExternalLink, Clock, Tag, Shield } from 'lucide-react'
+import { IncidentListItem } from '@/lib/api'
 import { SeverityBadge } from '@/components/SeverityBadge'
 
 interface IncidentCardProps {
-  incident: Incident
+  incident: IncidentListItem
 }
 
 export function IncidentCard({ incident }: IncidentCardProps) {
+  const dateStr = incident.published_at || incident.discovered_at
+
   return (
     <Link
       href={`/incidents/${incident.id}`}
@@ -22,61 +24,47 @@ export function IncidentCard({ incident }: IncidentCardProps) {
         <SeverityBadge severity={incident.severity} size="sm" />
       </div>
 
-      {incident.ai_summary && (
+      {incident.summary && (
         <p className="text-xs text-cyber-muted line-clamp-2 mb-3">
-          {incident.ai_summary}
+          {incident.summary}
         </p>
       )}
 
       <div className="flex flex-wrap gap-2 mb-3">
-        <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-cyber-surface border border-cyber-border text-cyber-muted">
-          <Shield className="w-3 h-3" />
-          {incident.incident_type}
-        </span>
-        {incident.country && (
+        {incident.category && (
           <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-cyber-surface border border-cyber-border text-cyber-muted">
-            <MapPin className="w-3 h-3" />
-            {incident.country}
+            <Shield className="w-3 h-3" />
+            {incident.category}
           </span>
         )}
-        {incident.threat_actor && (
+        {incident.cve_id && (
           <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-cyber-surface border border-cyber-border text-cyber-muted">
             <Tag className="w-3 h-3" />
-            {incident.threat_actor}
+            {incident.cve_id}
           </span>
         )}
+        {incident.tags?.slice(0, 2).map((tag) => (
+          <span
+            key={tag}
+            className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-cyber-surface border border-cyber-border text-cyber-muted"
+          >
+            {tag}
+          </span>
+        ))}
       </div>
 
-      {incident.cve_ids?.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-3">
-          {incident.cve_ids.slice(0, 3).map((cve) => (
-            <span
-              key={cve}
-              className="text-xs px-1.5 py-0.5 rounded bg-cyber-danger/10 border border-cyber-danger/30 text-cyber-danger font-mono"
-            >
-              {cve}
-            </span>
-          ))}
-          {incident.cve_ids.length > 3 && (
-            <span className="text-xs px-1.5 py-0.5 rounded bg-cyber-surface border border-cyber-border text-cyber-muted">
-              +{incident.cve_ids.length - 3}
-            </span>
-          )}
-        </div>
-      )}
-
       <div className="flex items-center justify-between text-xs text-cyber-muted">
-        <div className="flex items-center gap-1">
+        <span className="flex items-center gap-1">
           <Clock className="w-3 h-3" />
-          {formatDistanceToNow(new Date(incident.date_published), {
+          {formatDistanceToNow(new Date(dateStr), {
             addSuffix: true,
             locale: fr,
           })}
-        </div>
-        <div className="flex items-center gap-1 hover:text-cyber-primary transition-colors">
-          <span>{incident.source_name}</span>
+        </span>
+        <span className="flex items-center gap-1">
           <ExternalLink className="w-3 h-3" />
-        </div>
+          {incident.source_name}
+        </span>
       </div>
     </Link>
   )
