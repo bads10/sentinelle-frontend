@@ -1,16 +1,14 @@
 'use client'
-
 import {
-  AreaChart,
-  Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Cell,
 } from 'recharts'
-import { format, parseISO } from 'date-fns'
-import { fr } from 'date-fns/locale'
 
 interface ThreatChartProps {
   data: Array<{ date: string; count: number }>
@@ -22,15 +20,15 @@ interface CustomTooltipProps {
   label?: string
 }
 
+const COLORS = [
+  '#00d4ff', '#7c3aed', '#0891b2', '#059669', '#d97706', '#dc2626', '#6b7280',
+]
+
 function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
   if (active && payload && payload.length) {
     return (
       <div className="bg-cyber-card border border-cyber-border rounded-lg p-3 shadow-xl">
-        <p className="text-xs text-cyber-muted mb-1">
-          {label
-            ? format(parseISO(label), 'dd MMM yyyy', { locale: fr })
-            : ''}
-        </p>
+        <p className="text-xs text-cyber-muted mb-1">{label}</p>
         <p className="text-sm font-semibold text-cyber-primary">
           {payload[0].value} incidents
         </p>
@@ -48,22 +46,12 @@ export function ThreatChart({ data }: ThreatChartProps) {
       </div>
     )
   }
-
   return (
     <ResponsiveContainer width="100%" height={200}>
-      <AreaChart data={data} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-        <defs>
-          <linearGradient id="threatGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#00d4ff" stopOpacity={0.3} />
-            <stop offset="95%" stopColor="#00d4ff" stopOpacity={0} />
-          </linearGradient>
-        </defs>
+      <BarChart data={data} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#1e2d3d" vertical={false} />
         <XAxis
           dataKey="date"
-          tickFormatter={(val) =>
-            format(parseISO(val), 'dd/MM', { locale: fr })
-          }
           tick={{ fill: '#4a6fa5', fontSize: 11 }}
           axisLine={false}
           tickLine={false}
@@ -75,16 +63,12 @@ export function ThreatChart({ data }: ThreatChartProps) {
           allowDecimals={false}
         />
         <Tooltip content={<CustomTooltip />} />
-        <Area
-          type="monotone"
-          dataKey="count"
-          stroke="#00d4ff"
-          strokeWidth={2}
-          fill="url(#threatGradient)"
-          dot={false}
-          activeDot={{ r: 4, fill: '#00d4ff', stroke: '#0a0f1e', strokeWidth: 2 }}
-        />
-      </AreaChart>
+        <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+          {data.map((_, index) => (
+            <Cell key={index} fill={COLORS[index % COLORS.length]} />
+          ))}
+        </Bar>
+      </BarChart>
     </ResponsiveContainer>
   )
 }
