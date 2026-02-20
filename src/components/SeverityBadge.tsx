@@ -1,9 +1,9 @@
 import { clsx } from 'clsx'
 
-type Severity = 'low' | 'medium' | 'high' | 'critical'
+type Severity = 'low' | 'medium' | 'high' | 'critical' | 'info'
 
 interface SeverityBadgeProps {
-  severity: Severity
+  severity: string | null | undefined
   size?: 'sm' | 'md' | 'lg'
 }
 
@@ -24,11 +24,19 @@ const severityConfig: Record<Severity, { label: string; className: string }> = {
     label: 'Critique',
     className: 'bg-red-900/30 text-red-400 border-red-800 severity-critical',
   },
+  info: {
+    label: 'Info',
+    className: 'bg-blue-900/30 text-blue-400 border-blue-800',
+  },
 }
 
-export function SeverityBadge({ severity, size = 'md' }: SeverityBadgeProps) {
-  const config = severityConfig[severity] ?? severityConfig.medium
+const VALID_SEVERITIES: Severity[] = ['low', 'medium', 'high', 'critical', 'info']
 
+export function SeverityBadge({ severity, size = 'md' }: SeverityBadgeProps) {
+  const key = (severity ?? '') as Severity
+  const config = VALID_SEVERITIES.includes(key)
+    ? severityConfig[key]
+    : severityConfig.medium
   return (
     <span
       className={clsx(
