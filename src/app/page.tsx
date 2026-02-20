@@ -1,5 +1,4 @@
 'use client'
-
 import { useQuery } from '@tanstack/react-query'
 import { Shield, AlertTriangle, Activity, TrendingUp, Clock, Database } from 'lucide-react'
 import Link from 'next/link'
@@ -20,7 +19,7 @@ export default function DashboardPage() {
 
   const { data: recentIncidents, isLoading: incidentsLoading } = useQuery({
     queryKey: ['incidents', 'recent'],
-    queryFn: () => api.getIncidents({ limit: 10, sort: 'date_published', order: 'desc' }),
+    queryFn: () => api.getIncidents({ limit: 10 }),
     refetchInterval: 30000,
   })
 
@@ -29,6 +28,14 @@ export default function DashboardPage() {
     queryFn: () => api.getIncidents({ severity: 'critical', limit: 5 }),
     refetchInterval: 30000,
   })
+
+  // Build chart data from by_category stats
+  const chartData = stats?.by_category
+    ? Object.entries(stats.by_category)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 7)
+        .map(([date, count]) => ({ date, count }))
+    : []
 
   return (
     <div className="space-y-8">
@@ -44,7 +51,7 @@ export default function DashboardPage() {
         <div className="flex items-center gap-2 text-cyber-accent text-sm">
           <Activity className="w-4 h-4 animate-pulse" />
           <span>Live</span>
-          <span className="text-cyber-muted">– MAJ toutes les 30s</span>
+          <span className="text-cyber-muted">&ndash; MAJ toutes les 30s</span>
         </div>
       </div>
 
@@ -58,22 +65,22 @@ export default function DashboardPage() {
           loading={statsLoading}
         />
         <StatsCard
-          title="Critiques (24h)"
-          value={stats?.critical_24h ?? '–'}
+          title="Critiques"
+          value={stats?.critical_count ?? '–'}
           icon={<AlertTriangle className="w-5 h-5" />}
           color="danger"
           loading={statsLoading}
         />
         <StatsCard
-          title="Nouveaux Aujourd'hui"
-          value={stats?.new_today ?? '–'}
+          title="Dernières 24h"
+          value={stats?.last_24h ?? '–'}
           icon={<TrendingUp className="w-5 h-5" />}
           color="warning"
           loading={statsLoading}
         />
         <StatsCard
-          title="Sources Actives"
-          value={stats?.active_sources ?? '–'}
+          title="Dernière semaine"
+          value={stats?.last_7d ?? '–'}
           icon={<Activity className="w-5 h-5" />}
           color="accent"
           loading={statsLoading}
@@ -86,11 +93,10 @@ export default function DashboardPage() {
         <div className="lg:col-span-2 bg-cyber-card border border-cyber-border rounded-xl p-6">
           <h2 className="text-lg font-semibold text-cyber-text mb-4 flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-cyber-primary" />
-            Activité des Menaces (7 jours)
+            Répartition par catégorie
           </h2>
-          <ThreatChart data={stats?.weekly_activity ?? []} />
+          <ThreatChart data={chartData} />
         </div>
-
         {/* Critical Alerts */}
         <div className="bg-cyber-card border border-cyber-border rounded-xl p-6">
           <h2 className="text-lg font-semibold text-cyber-text mb-4 flex items-center gap-2">
@@ -110,7 +116,10 @@ export default function DashboardPage() {
                 </div>
                 <p className="text-xs text-cyber-muted mt-1 flex items-center gap-1">
                   <Clock className="w-3 h-3" />
-                  {formatDistanceToNow(new Date(incident.date_published), { addSuffix: true, locale: fr })}
+                  {formatDistanceToNow(
+                    new Date(incident.published_at || incident.discovered_at),
+                    { addSuffix: true, locale: fr }
+                  )}
                 </p>
               </Link>
             ))}
